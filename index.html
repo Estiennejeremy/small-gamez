@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hacking Grid - Niveau Unique</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #0f0f23, #1a1a2e);
+      font-family: 'Courier New', monospace;
+      color: #00ff00;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      border: 3px solid #00ff00;
+      background: rgba(0, 0, 0, 0.9);
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      cursor: pointer;
+    }
+    #rules {
+      margin-top: 10px;
+      color: #00ff00;
+      text-align: center;
+      font-size: 14px;
+      max-width: 600px;
+    }
+    #winImage {
+      display: none;
+      margin-top: 10px;
+      border: 2px solid #00ff00;
+      border-radius: 8px;
+      max-width: 90%;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+  <div id="rules">
+    Cliquez sur deux nœuds adjacents pour créer une connexion.<br />
+    Cliquez sur une connexion pour la supprimer.<br />
+    Chaque nœud doit atteindre son nombre maximum de connexions (affiché à l'intérieur).
+  </div>
+  <img id="winImage" src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3l2Y2o3cDVobTU2ZDFsc3EyMXVmeTh0OGt3eXpuMTAzMHY2ZHBsYSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/rxvGisdf3qL4A/giphy.gif" alt="Félicitations !" />
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const winImage = document.getElementById("winImage");
+
+    const gridSize = 60;
+    const nodeRadius = 18;
+    let selectedNode = null;
+    const nodes = [];
+    const connections = [];
+
+    // Génère et centre la grille étoile
+    function generateStarGrid() {
+      // Schéma étoile sur une grille 5x5, centré
+      // 0 = vide, 1 = nœud
+      const nodeLayout = [
+        [1, 0, 1, 0, 1],
+        [0, 1, 1, 1, 0],
+        [1, 1, 1, 1, 1],
+        [0, 1, 1, 1, 0],
+        [1, 0, 1, 0, 1],
+      ];
+      // id: y-x
+      // Centre (2-2) = 8, croix = 4, diagonales = 2
+      const maxConnections = {
+        "0-0": 2, "0-2": 2, "0-4": 2,
+        "1-1": 4, "1-2": 4, "1-3": 4,
+        "2-0": 2, "2-1": 4, "2-2": 8, "2-3": 4, "2-4": 2,
+        "3-1": 4, "3-2": 4, "3-3": 4,
+        "4-0": 2, "4-2": 2, "4-4": 2
+      };
+      const gridSize = 60;
+      const gridRows = nodeLayout.length;
+      const gridCols = nodeLayout[0].length;
+      const xOffset = (canvas.width - (gridCols - 1) * gridSize) / 2;
+      const yOffset = (canvas.height - (gridRows - 1) * gridSize) / 2;
+      nodes.length = 0;
+      connections.length = 0;
+      for (let y = 0; y < gridRows; y++) {
+        for (let x = 0; x < gridCols; x++) {
+          if (nodeLayout[y][x]) {
+            const key = `${y}-${x}`;
+            nodes.push({
+              id: key,
+              x: x * gridSize + xOffset,
+              y: y * gridSize + yOffset,
+              connections: 0,
+              max: maxConnections[key] || 1,
+            });
+          }
+        }
+      }
+    }
+    // Génère la grille au chargement
+    generateStarGrid();
+
+
+
+
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(0,255,0,0.5)';
+      ctx.shadowBlur = 10;
+
+      for (const conn of connections) {
+        const a = nodes.find(n => n.id === conn[0]);
+        const b = nodes.find(n => n.id === conn[1]);
+        ctx.strokeStyle = '#00ff00';
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+
+      ctx.shadowBlur = 0;
+
+      for (const node of nodes) {
+        const complete = node.connections === node.max;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, nodeRadius, 0, Math.PI * 2);
+        ctx.fillStyle = complete ? '#00ff00' : '#001100';
+        ctx.strokeStyle = '#00ff00';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(node.x - 14, node.y - 8, 28, 16);
+
+        ctx.fillStyle = '#00ff00';
+        ctx.font = '12px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${node.connections}/${node.max}`, node.x, node.y);
+      }
+
+      if (selectedNode) {
+        ctx.strokeStyle = '#ffff00';
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(selectedNode.x, selectedNode.y, nodeRadius + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      checkWin();
+    }
+
+    function getNodeAt(x, y) {
+      return nodes.find(n => Math.hypot(n.x - x, n.y - y) < nodeRadius);
+    }
+
+    // Retourne le nombre de connexions existantes entre deux points
+    function connectionCount(id1, id2) {
+      return connections.filter(c => (c[0] === id1 && c[1] === id2) || (c[0] === id2 && c[1] === id1)).length;
+    }
+
+    function checkWin() {
+      const allCorrect = nodes.every(n => n.connections === n.max);
+      winImage.style.display = allCorrect ? 'block' : 'none';
+    }
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      for (let i = 0; i < connections.length; i++) {
+        const [id1, id2] = connections[i];
+        const a = nodes.find(n => n.id === id1);
+        const b = nodes.find(n => n.id === id2);
+        const dist = Math.abs((b.y - a.y) * x - (b.x - a.x) * y + b.x * a.y - b.y * a.x) /
+                     Math.hypot(b.x - a.x, b.y - a.y);
+        const midX = (a.x + b.x) / 2;
+        const midY = (a.y + b.y) / 2;
+        if (dist < 6 && Math.abs(x - midX) < 25 && Math.abs(y - midY) < 25) {
+          connections.splice(i, 1);
+          a.connections--;
+          b.connections--;
+          draw();
+          return;
+        }
+      }
+
+      const clicked = getNodeAt(x, y);
+      if (!clicked) return;
+
+      if (!selectedNode) {
+        selectedNode = clicked;
+      } else if (selectedNode.id === clicked.id) {
+        selectedNode = null;
+      } else {
+        // Détermine les voisins logiques dans la grille
+        function getNeighbors(node) {
+          const [y, x] = node.id.split('-').map(Number);
+          const deltas = [
+            [-1, 0], [1, 0], [0, -1], [0, 1], // orthogonaux
+            [-1, -1], [-1, 1], [1, -1], [1, 1] // diagonaux
+          ];
+          const neighbors = [];
+          for (const [dy, dx] of deltas) {
+            const ny = y + dy;
+            const nx = x + dx;
+            const neighborId = `${ny}-${nx}`;
+            if (nodes.find(n => n.id === neighborId)) {
+              neighbors.push(neighborId);
+            }
+          }
+          return neighbors;
+        }
+        const selectedNeighbors = getNeighbors(selectedNode);
+        const isNeighbor = selectedNeighbors.includes(clicked.id);
+
+        const nbConn = connectionCount(selectedNode.id, clicked.id);
+        if (
+          isNeighbor &&
+          selectedNode.connections < selectedNode.max &&
+          clicked.connections < clicked.max &&
+          nbConn < 2
+        ) {
+          connections.push([selectedNode.id, clicked.id]);
+          selectedNode.connections++;
+          clicked.connections++;
+        }
+        selectedNode = null;
+      }
+
+      draw();
+    });
+
+    draw();
+  </script>
+</body>
+</html>
