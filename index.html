@@ -2,89 +2,232 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Hacking Grid - Casse-tête</title>
   <style>
     body {
       margin: 0;
+      padding: 10px;
       background: linear-gradient(135deg, #0f0f23, #1a1a2e);
       font-family: 'Courier New', monospace;
       color: #00ff00;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
+      box-sizing: border-box;
+      overflow-x: hidden;
     }
-    canvas {
-      border: 3px solid #00ff00;
-      background: rgba(0, 0, 0, 0.9);
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-      cursor: pointer;
-    }
-    #rules {
-      margin-top: 10px;
-      color: #00ff00;
+
+    h1 {
+      font-size: 1.5em;
+      margin: 10px 0;
       text-align: center;
-      font-size: 14px;
-      max-width: 600px;
-      line-height: 1.4;
+      color: #00ff00;
+      text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
     }
-    #winImage {
-      display: none;
-      margin-top: 10px;
+
+    canvas {
       border: 2px solid #00ff00;
+      background: rgba(0, 0, 0, 0.9);
       border-radius: 8px;
-      max-width: 90%;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+      touch-action: none;
+      max-width: 100%;
+      height: auto;
     }
-    .rule-highlight {
-      color: #ffff00;
-      font-weight: bold;
+
+    #gameContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 500px;
     }
-    #resetBtn {
-      margin-top: 10px;
-      padding: 8px 16px;
+
+    #controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 20px;
       background: rgba(0, 255, 0, 0.1);
       border: 2px solid #00ff00;
       color: #00ff00;
       font-family: 'Courier New', monospace;
       cursor: pointer;
       border-radius: 5px;
+      font-size: 14px;
+      touch-action: manipulation;
+      min-width: 100px;
     }
-    #resetBtn:hover {
+
+    button:hover, button:active {
       background: rgba(0, 255, 0, 0.2);
+      transform: scale(0.95);
+    }
+
+    #rules {
+      margin: 15px 0;
+      color: #00ff00;
+      text-align: center;
+      font-size: 12px;
+      max-width: 100%;
+      line-height: 1.5;
+      padding: 0 10px;
+      box-sizing: border-box;
+    }
+
+    #winImage {
+      display: none;
+      margin: 15px 0;
+      border: 2px solid #00ff00;
+      border-radius: 8px;
+      max-width: 200px;
+      height: auto;
+    }
+
+    .rule-highlight {
+      color: #ffff00;
+      font-weight: bold;
+    }
+
+    #selectedInfo {
+      margin: 10px 0;
+      padding: 8px 12px;
+      background: rgba(0, 255, 0, 0.1);
+      border: 1px solid #00ff00;
+      border-radius: 5px;
+      font-size: 14px;
+      min-height: 20px;
+      text-align: center;
+    }
+
+    #connectionMode {
+      margin: 10px 0;
+      padding: 8px 12px;
+      background: rgba(255, 255, 0, 0.1);
+      border: 1px solid #ffff00;
+      border-radius: 5px;
+      font-size: 12px;
+      text-align: center;
+      color: #ffff00;
+    }
+
+    /* Responsive design */
+    @media (max-width: 480px) {
+      body {
+        padding: 5px;
+      }
+      
+      h1 {
+        font-size: 1.2em;
+        margin: 5px 0;
+      }
+      
+      #rules {
+        font-size: 11px;
+        margin: 10px 0;
+      }
+      
+      button {
+        padding: 10px 15px;
+        font-size: 12px;
+        min-width: 80px;
+      }
+    }
+
+    @media (max-height: 600px) {
+      body {
+        padding: 5px;
+      }
+      
+      #rules {
+        font-size: 10px;
+        margin: 8px 0;
+      }
+      
+      h1 {
+        font-size: 1.1em;
+        margin: 5px 0;
+      }
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="600" height="400"></canvas>
-  <div id="rules">
-    <span class="rule-highlight">RÈGLES DU CASSE-TÊTE :</span><br />
-    • Connexions uniquement <span class="rule-highlight">verticales et horizontales</span><br />
-    • Deux points peuvent être reliés s'il n'y a <span class="rule-highlight">aucun obstacle</span> entre eux<br />
-    • Maximum <span class="rule-highlight">2 connexions</span> entre deux points<br />
-    • Maximum <span class="rule-highlight">6 connexions</span> par point<br />
-    • Chaque point doit atteindre son nombre exact de connexions<br />
-    <em>Cliquez sur deux points pour créer une connexion (ligne de vue claire)</em>
+  <h1>🔓 HACKING GRID</h1>
+  
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="400" height="320"></canvas>
+    
+    <div id="selectedInfo">Touchez un point pour le sélectionner</div>
+    
+    <div id="connectionMode" style="display: none;">
+      Mode connexion : Touchez un autre point pour le relier
+    </div>
+    
+    <div id="controls">
+      <button id="resetBtn">🔄 Recommencer</button>
+      <button id="clearBtn">🗑️ Effacer</button>
+    </div>
+    
+    <div id="rules">
+      <span class="rule-highlight">📋 RÈGLES DU CASSE-TÊTE</span><br />
+      • Connexions uniquement <span class="rule-highlight">verticales et horizontales</span><br />
+      • Deux points peuvent être reliés s'il n'y a <span class="rule-highlight">aucun obstacle</span> entre eux<br />
+      • Maximum <span class="rule-highlight">2 connexions</span> entre deux points<br />
+      • Maximum <span class="rule-highlight">6 connexions</span> par point<br />
+      • Chaque point doit atteindre son nombre exact de connexions<br />
+      <em>📱 Touchez deux points pour créer une connexion • Touchez une ligne pour la supprimer</em>
+    </div>
   </div>
-  <button id="resetBtn">Recommencer</button>
+
   <img id="winImage" src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3l2Y2o3cDVobTU2ZDFsc3EyMXVmeTh0OGt3eXpuMTAzMHY2ZHBsYSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/rxvGisdf3qL4A/giphy.gif" alt="Félicitations !" />
+  
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const winImage = document.getElementById("winImage");
     const resetBtn = document.getElementById("resetBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const selectedInfo = document.getElementById("selectedInfo");
+    const connectionMode = document.getElementById("connectionMode");
 
-    const gridSize = 60;
-    const nodeRadius = 20;
+    // Ajuste la taille du canvas pour mobile
+    function resizeCanvas() {
+      const container = document.getElementById("gameContainer");
+      const maxWidth = Math.min(window.innerWidth - 20, 500);
+      const maxHeight = Math.min(window.innerHeight * 0.4, 320);
+      
+      canvas.width = maxWidth;
+      canvas.height = maxHeight;
+      
+      // Redessine après redimensionnement
+      if (nodes.length > 0) {
+        generatePuzzleGrid();
+        draw();
+      }
+    }
+
+    // Redimensionne au chargement et lors du changement d'orientation
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(resizeCanvas, 100);
+    });
+
+    const nodeRadius = 25; // Augmenté pour faciliter le toucher
     let selectedNode = null;
     const nodes = [];
     const connections = [];
 
     // Génère une grille de casse-tête avec solution unique
     function generatePuzzleGrid() {
-      // Grille 6x6 avec des points stratégiquement placés pour utiliser la ligne de vue
+      // Grille 6x6 avec des points stratégiquement placés
       const nodeLayout = [
         [1, 0, 1, 0, 0, 1],
         [0, 0, 0, 1, 0, 0],
@@ -106,6 +249,13 @@
 
       const gridRows = nodeLayout.length;
       const gridCols = nodeLayout[0].length;
+      
+      // Calcule la taille de grille en fonction de la taille du canvas
+      const gridSize = Math.min(
+        (canvas.width - 40) / (gridCols - 1),
+        (canvas.height - 40) / (gridRows - 1)
+      );
+      
       const xOffset = (canvas.width - (gridCols - 1) * gridSize) / 2;
       const yOffset = (canvas.height - (gridRows - 1) * gridSize) / 2;
       
@@ -126,113 +276,97 @@
           }
         }
       }
+      
+      selectedNode = null;
+      updateSelectedInfo();
     }
 
-    // Génère la grille au chargement
-    generatePuzzleGrid();
+    function updateSelectedInfo() {
+      if (selectedNode) {
+        selectedInfo.textContent = `Point sélectionné : ${selectedNode.connections}/${selectedNode.max} connexions`;
+        connectionMode.style.display = 'block';
+      } else {
+        selectedInfo.textContent = "Touchez un point pour le sélectionner";
+        connectionMode.style.display = 'none';
+      }
+    }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Dessine les connexions
-      ctx.shadowColor = 'rgba(0,255,0,0.5)';
-      ctx.shadowBlur = 10;
+      // Debug: affiche le nombre de connexions
+      console.log('Nombre de connexions:', connections.length);
 
-      // Groupe les connexions par paire de points
-      const connectionGroups = {};
-      for (const conn of connections) {
-        const key = [conn[0], conn[1]].sort().join('-');
-        if (!connectionGroups[key]) {
-          connectionGroups[key] = [];
+      // Dessine les connexions en premier, de manière simple
+      if (connections.length > 0) {
+        ctx.save();
+        
+        // Dessine toutes les connexions simplement
+        for (const conn of connections) {
+          const node1 = nodes.find(n => n.id === conn[0]);
+          const node2 = nodes.find(n => n.id === conn[1]);
+          
+          if (node1 && node2) {
+            // Trait épais blanc pour visibilité maximale
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(node1.x, node1.y);
+            ctx.lineTo(node2.x, node2.y);
+            ctx.stroke();
+            
+            // Trait vert par-dessus
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(node1.x, node1.y);
+            ctx.lineTo(node2.x, node2.y);
+            ctx.stroke();
+          }
         }
-        connectionGroups[key].push(conn);
+        
+        ctx.restore();
       }
 
-      // Dessine chaque groupe de connexions
-      for (const [key, conns] of Object.entries(connectionGroups)) {
-        const [id1, id2] = key.split('-');
-        const a = nodes.find(n => n.id === id1);
-        const b = nodes.find(n => n.id === id2);
-        
-        // Vérification de sécurité - s'assurer que les nœuds existent
-        if (!a || !b) continue;
-        
-        ctx.strokeStyle = '#00ff00';
-        
-        if (conns.length === 1) {
-          // Connexion simple
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        } else if (conns.length === 2) {
-          // Double connexion - dessiner deux traits parallèles
-          ctx.lineWidth = 2;
-          
-          // Calcule le vecteur perpendiculaire pour espacer les traits
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const length = Math.sqrt(dx * dx + dy * dy);
-          const perpX = -dy / length * 4; // Espacement de 4 pixels
-          const perpY = dx / length * 4;
-          
-          // Premier trait
-          ctx.beginPath();
-          ctx.moveTo(a.x + perpX, a.y + perpY);
-          ctx.lineTo(b.x + perpX, b.y + perpY);
-          ctx.stroke();
-          
-          // Deuxième trait
-          ctx.beginPath();
-          ctx.moveTo(a.x - perpX, a.y - perpY);
-          ctx.lineTo(b.x - perpX, b.y - perpY);
-          ctx.stroke();
-        }
-      }
-
-      ctx.shadowBlur = 0;
-
-      // Dessine les nœuds
+      // Dessine les nœuds avec une meilleure visibilité
       for (const node of nodes) {
         const complete = node.connections === node.max;
         const overLimit = node.connections > 6;
         
+        // Cercle principal
         ctx.beginPath();
         ctx.arc(node.x, node.y, nodeRadius, 0, Math.PI * 2);
         
         if (overLimit) {
           ctx.fillStyle = '#ff0000';
+          ctx.strokeStyle = '#ff0000';
         } else if (complete) {
           ctx.fillStyle = '#00ff00';
+          ctx.strokeStyle = '#00ff00';
         } else {
           ctx.fillStyle = '#001100';
+          ctx.strokeStyle = '#00ff00';
         }
         
-        ctx.strokeStyle = overLimit ? '#ff0000' : '#00ff00';
         ctx.fill();
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Fond du texte
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(node.x - 18, node.y - 8, 36, 16);
-
         // Texte des connexions
-        ctx.fillStyle = overLimit ? '#ff0000' : '#00ff00';
-        ctx.font = '12px Courier New';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px Courier New';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${node.connections}/${node.max}`, node.x, node.y);
       }
 
-      // Surligne le nœud sélectionné
+      // Surligne le nœud sélectionné avec une animation
       if (selectedNode) {
         ctx.strokeStyle = '#ffff00';
-        ctx.setLineDash([5, 5]);
-        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 8]);
+        ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.arc(selectedNode.x, selectedNode.y, nodeRadius + 6, 0, Math.PI * 2);
+        ctx.arc(selectedNode.x, selectedNode.y, nodeRadius + 10, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -241,176 +375,181 @@
     }
 
     function getNodeAt(x, y) {
-      return nodes.find(n => Math.hypot(n.x - x, n.y - y) < nodeRadius);
+      return nodes.find(n => Math.hypot(n.x - x, n.y - y) < nodeRadius + 5);
     }
 
-    // Retourne le nombre de connexions existantes entre deux points
     function connectionCount(id1, id2) {
       return connections.filter(c => (c[0] === id1 && c[1] === id2) || (c[0] === id2 && c[1] === id1)).length;
     }
 
-    // Vérifie si deux nœuds peuvent être reliés (ligne de vue claire)
     function canConnect(node1, node2) {
       const [y1, x1] = node1.id.split('-').map(Number);
       const [y2, x2] = node2.id.split('-').map(Number);
       
-      // Doit être sur la même ligne (horizontal) ou colonne (vertical)
       if (y1 !== y2 && x1 !== x2) {
         return false;
       }
       
-      // Vérifie qu'il n'y a pas d'autre point entre les deux
       if (y1 === y2) {
-        // Connexion horizontale
         const minX = Math.min(x1, x2);
         const maxX = Math.max(x1, x2);
         
         for (let x = minX + 1; x < maxX; x++) {
           const obstacleId = `${y1}-${x}`;
           if (nodes.find(n => n.id === obstacleId)) {
-            return false; // Il y a un obstacle
+            return false;
           }
         }
       } else {
-        // Connexion verticale
         const minY = Math.min(y1, y2);
         const maxY = Math.max(y1, y2);
         
         for (let y = minY + 1; y < maxY; y++) {
           const obstacleId = `${y}-${x1}`;
           if (nodes.find(n => n.id === obstacleId)) {
-            return false; // Il y a un obstacle
+            return false;
           }
         }
       }
       
-      return true; // Ligne de vue claire
+      return true;
     }
 
     function checkWin() {
       const allCorrect = nodes.every(n => n.connections === n.max);
       const noOverLimit = nodes.every(n => n.connections <= 6);
-      winImage.style.display = (allCorrect && noOverLimit) ? 'block' : 'none';
+      
+      if (allCorrect && noOverLimit) {
+        winImage.style.display = 'block';
+        selectedInfo.textContent = "🎉 Félicitations ! Vous avez résolu le puzzle !";
+        connectionMode.style.display = 'none';
+      } else {
+        winImage.style.display = 'none';
+      }
     }
 
-    // Trouve et supprime une connexion cliquée
     function removeConnectionAt(x, y) {
-      // Groupe les connexions par paire de points pour gérer les doubles traits
-      const connectionGroups = {};
-      for (let i = 0; i < connections.length; i++) {
+      console.log(`Tentative de suppression à x:${x}, y:${y}`);
+      
+      // Parcourt toutes les connexions pour trouver celle qui est cliquée
+      for (let i = connections.length - 1; i >= 0; i--) {
         const conn = connections[i];
-        const key = [conn[0], conn[1]].sort().join('-');
-        if (!connectionGroups[key]) {
-          connectionGroups[key] = [];
-        }
-        connectionGroups[key].push({conn, index: i});
-      }
-
-      for (const [key, conns] of Object.entries(connectionGroups)) {
-        const [id1, id2] = key.split('-');
-        const a = nodes.find(n => n.id === id1);
-        const b = nodes.find(n => n.id === id2);
+        const node1 = nodes.find(n => n.id === conn[0]);
+        const node2 = nodes.find(n => n.id === conn[1]);
         
-        // Vérification de sécurité - s'assurer que les nœuds existent
-        if (!a || !b) continue;
+        if (!node1 || !node2) continue;
         
-        // Vérifie si le clic est proche de la ligne (en tenant compte des doubles traits)
-        let hitDetected = false;
+        // Calcule la distance du point cliqué à la ligne
+        const dx = node2.x - node1.x;
+        const dy = node2.y - node1.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
         
-        if (conns.length === 1) {
-          // Connexion simple
-          const dist = Math.abs((b.y - a.y) * x - (b.x - a.x) * y + b.x * a.y - b.y * a.x) /
-                       Math.hypot(b.x - a.x, b.y - a.y);
-          const midX = (a.x + b.x) / 2;
-          const midY = (a.y + b.y) / 2;
-          hitDetected = dist < 8 && Math.abs(x - midX) < 30 && Math.abs(y - midY) < 30;
-        } else if (conns.length === 2) {
-          // Double connexion - vérifie les deux traits
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const length = Math.sqrt(dx * dx + dy * dy);
-          
-          if (length > 0) { // Évite la division par zéro
-            const perpX = -dy / length * 4;
-            const perpY = dx / length * 4;
-            
-            // Vérifie le premier trait
-            const dist1 = Math.abs((b.y + perpY - a.y - perpY) * x - (b.x + perpX - a.x - perpX) * y + 
-                                  (b.x + perpX) * (a.y + perpY) - (b.y + perpY) * (a.x + perpX)) /
-                         Math.hypot(b.x - a.x, b.y - a.y);
-            
-            // Vérifie le deuxième trait
-            const dist2 = Math.abs((b.y - perpY - a.y + perpY) * x - (b.x - perpX - a.x + perpX) * y + 
-                                  (b.x - perpX) * (a.y - perpY) - (b.y - perpY) * (a.x + perpX)) /
-                         Math.hypot(b.x - a.x, b.y - a.y);
-            
-            const midX = (a.x + b.x) / 2;
-            const midY = (a.y + b.y) / 2;
-            hitDetected = (dist1 < 8 || dist2 < 8) && Math.abs(x - midX) < 30 && Math.abs(y - midY) < 30;
-          }
-        }
+        if (length === 0) continue;
         
-        if (hitDetected) {
-          // Supprime une connexion (la première trouvée)
-          const toRemove = conns[0];
-          connections.splice(toRemove.index, 1);
-          a.connections--;
-          b.connections--;
+        // Projette le point cliqué sur la ligne
+        const t = Math.max(0, Math.min(1, ((x - node1.x) * dx + (y - node1.y) * dy) / (length * length)));
+        const projX = node1.x + t * dx;
+        const projY = node1.y + t * dy;
+        
+        // Distance du point cliqué au point projeté
+        const distance = Math.sqrt((x - projX) * (x - projX) + (y - projY) * (y - projY));
+        
+        console.log(`Connexion ${i}: distance = ${distance}`);
+        
+        // Si le clic est proche de la ligne (tolérance augmentée à 25 pixels)
+        if (distance < 25) {
+          console.log(`Suppression de la connexion entre ${node1.id} et ${node2.id}`);
+          // Supprime la connexion
+          connections.splice(i, 1);
+          node1.connections--;
+          node2.connections--;
           return true;
         }
       }
+      console.log("Aucune connexion trouvée à supprimer");
       return false;
     }
 
-    canvas.addEventListener("click", (e) => {
+    function handleTouch(e) {
+      e.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      // Essaie de supprimer une connexion existante
-      if (removeConnectionAt(x, y)) {
-        draw();
-        return;
-      }
-
-      const clicked = getNodeAt(x, y);
-      if (!clicked) return;
-
-      if (!selectedNode) {
-        selectedNode = clicked;
-      } else if (selectedNode.id === clicked.id) {
-        selectedNode = null;
+      
+      // Gestion des coordonnées pour les événements tactiles et souris
+      let x, y;
+      if (e.type === 'touchstart') {
+        x = e.touches[0].clientX - rect.left;
+        y = e.touches[0].clientY - rect.top;
       } else {
-        // Vérifie toutes les règles
-        const hasLineOfSight = canConnect(selectedNode, clicked);
-        const existingConnections = connectionCount(selectedNode.id, clicked.id);
-        const canAddConnection = 
-          hasLineOfSight &&
-          selectedNode.connections < selectedNode.max &&
-          clicked.connections < clicked.max &&
-          selectedNode.connections < 6 &&
-          clicked.connections < 6 &&
-          existingConnections < 2;
-
-        if (canAddConnection) {
-          connections.push([selectedNode.id, clicked.id]);
-          selectedNode.connections++;
-          clicked.connections++;
-        }
-        
-        selectedNode = null;
+        x = e.clientX - rect.left;
+        y = e.clientY - rect.top;
       }
 
+      // Vérifie d'abord si on clique sur un nœud
+      const clicked = getNodeAt(x, y);
+      
+      // Si on a cliqué sur un nœud, on gère uniquement la sélection/connexion
+      if (clicked) {
+        if (!selectedNode) {
+          selectedNode = clicked;
+        } else if (selectedNode.id === clicked.id) {
+          selectedNode = null;
+        } else {
+          const hasLineOfSight = canConnect(selectedNode, clicked);
+          const existingConnections = connectionCount(selectedNode.id, clicked.id);
+          const canAddConnection = 
+            hasLineOfSight &&
+            selectedNode.connections < selectedNode.max &&
+            clicked.connections < clicked.max &&
+            selectedNode.connections < 6 &&
+            clicked.connections < 6 &&
+            existingConnections < 2;
+
+          if (canAddConnection) {
+            connections.push([selectedNode.id, clicked.id]);
+            selectedNode.connections++;
+            clicked.connections++;
+          }
+          
+          selectedNode = null;
+        }
+      } else {
+        // Si on n'a pas cliqué sur un nœud, on essaie de supprimer une connexion
+        if (removeConnectionAt(x, y)) {
+          selectedNode = null;
+        }
+      }
+
+      updateSelectedInfo();
       draw();
+    }
+
+    // Événements tactiles et souris
+    canvas.addEventListener("touchstart", handleTouch);
+    canvas.addEventListener("click", handleTouch);
+
+    // Empêche le zoom sur double tap
+    canvas.addEventListener("touchend", (e) => {
+      e.preventDefault();
     });
 
     // Bouton de reset
     resetBtn.addEventListener("click", () => {
       generatePuzzleGrid();
-      selectedNode = null;
       draw();
     });
 
+    // Bouton pour effacer toutes les connexions
+    clearBtn.addEventListener("click", () => {
+      connections.length = 0;
+      nodes.forEach(node => node.connections = 0);
+      selectedNode = null;
+      updateSelectedInfo();
+      draw();
+    });
+
+    // Initialisation
+    resizeCanvas();
+    generatePuzzleGrid();
     draw();
   </script>
 </body>
