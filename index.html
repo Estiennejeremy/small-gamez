@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hacking Grid - Niveau Unique</title>
+  <title>Hacking Grid - Casse-tête</title>
   <style>
     body {
       margin: 0;
@@ -29,6 +29,7 @@
       text-align: center;
       font-size: 14px;
       max-width: 600px;
+      line-height: 1.4;
     }
     #winImage {
       display: none;
@@ -37,54 +38,80 @@
       border-radius: 8px;
       max-width: 90%;
     }
+    .rule-highlight {
+      color: #ffff00;
+      font-weight: bold;
+    }
+    #resetBtn {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: rgba(0, 255, 0, 0.1);
+      border: 2px solid #00ff00;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    #resetBtn:hover {
+      background: rgba(0, 255, 0, 0.2);
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas" width="600" height="400"></canvas>
   <div id="rules">
-    Cliquez sur deux nœuds adjacents pour créer une connexion.<br />
-    Cliquez sur une connexion pour la supprimer.<br />
-    Chaque nœud doit atteindre son nombre maximum de connexions (affiché à l'intérieur).
+    <span class="rule-highlight">RÈGLES DU CASSE-TÊTE :</span><br />
+    • Connexions uniquement <span class="rule-highlight">verticales et horizontales</span><br />
+    • Deux points peuvent être reliés s'il n'y a <span class="rule-highlight">aucun obstacle</span> entre eux<br />
+    • Maximum <span class="rule-highlight">2 connexions</span> entre deux points<br />
+    • Maximum <span class="rule-highlight">6 connexions</span> par point<br />
+    • Chaque point doit atteindre son nombre exact de connexions<br />
+    <em>Cliquez sur deux points pour créer une connexion (ligne de vue claire)</em>
   </div>
+  <button id="resetBtn">Recommencer</button>
   <img id="winImage" src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3l2Y2o3cDVobTU2ZDFsc3EyMXVmeTh0OGt3eXpuMTAzMHY2ZHBsYSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/rxvGisdf3qL4A/giphy.gif" alt="Félicitations !" />
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const winImage = document.getElementById("winImage");
+    const resetBtn = document.getElementById("resetBtn");
 
     const gridSize = 60;
-    const nodeRadius = 18;
+    const nodeRadius = 20;
     let selectedNode = null;
     const nodes = [];
     const connections = [];
 
-    // Génère et centre la grille étoile
-    function generateStarGrid() {
-      // Schéma étoile sur une grille 5x5, centré
-      // 0 = vide, 1 = nœud
+    // Génère une grille de casse-tête avec solution unique
+    function generatePuzzleGrid() {
+      // Grille 6x6 avec des points stratégiquement placés pour utiliser la ligne de vue
       const nodeLayout = [
-        [1, 0, 1, 0, 1],
-        [0, 1, 1, 1, 0],
-        [1, 1, 1, 1, 1],
-        [0, 1, 1, 1, 0],
-        [1, 0, 1, 0, 1],
+        [1, 0, 1, 0, 0, 1],
+        [0, 0, 0, 1, 0, 0],
+        [1, 0, 1, 0, 1, 0],
+        [0, 1, 0, 0, 0, 1],
+        [0, 0, 1, 0, 1, 0],
+        [1, 0, 0, 1, 0, 1]
       ];
-      // id: y-x
-      // Centre (2-2) = 8, croix = 4, diagonales = 2
+      
+      // Nombres de connexions requis pour chaque point
       const maxConnections = {
-        "0-0": 2, "0-2": 2, "0-4": 2,
-        "1-1": 4, "1-2": 4, "1-3": 4,
-        "2-0": 2, "2-1": 4, "2-2": 8, "2-3": 4, "2-4": 2,
-        "3-1": 4, "3-2": 4, "3-3": 4,
-        "4-0": 2, "4-2": 2, "4-4": 2
+        "0-0": 2, "0-2": 3, "0-5": 2,
+        "1-3": 2,
+        "2-0": 3, "2-2": 4, "2-4": 2,
+        "3-1": 2, "3-5": 2,
+        "4-2": 3, "4-4": 2,
+        "5-0": 2, "5-3": 2, "5-5": 2
       };
-      const gridSize = 60;
+
       const gridRows = nodeLayout.length;
       const gridCols = nodeLayout[0].length;
       const xOffset = (canvas.width - (gridCols - 1) * gridSize) / 2;
       const yOffset = (canvas.height - (gridRows - 1) * gridSize) / 2;
+      
       nodes.length = 0;
       connections.length = 0;
+      
       for (let y = 0; y < gridRows; y++) {
         for (let x = 0; x < gridCols; x++) {
           if (nodeLayout[y][x]) {
@@ -100,57 +127,112 @@
         }
       }
     }
+
     // Génère la grille au chargement
-    generateStarGrid();
-
-
-
-
+    generatePuzzleGrid();
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      ctx.lineWidth = 2;
+      // Dessine les connexions
       ctx.shadowColor = 'rgba(0,255,0,0.5)';
       ctx.shadowBlur = 10;
 
+      // Groupe les connexions par paire de points
+      const connectionGroups = {};
       for (const conn of connections) {
-        const a = nodes.find(n => n.id === conn[0]);
-        const b = nodes.find(n => n.id === conn[1]);
+        const key = [conn[0], conn[1]].sort().join('-');
+        if (!connectionGroups[key]) {
+          connectionGroups[key] = [];
+        }
+        connectionGroups[key].push(conn);
+      }
+
+      // Dessine chaque groupe de connexions
+      for (const [key, conns] of Object.entries(connectionGroups)) {
+        const [id1, id2] = key.split('-');
+        const a = nodes.find(n => n.id === id1);
+        const b = nodes.find(n => n.id === id2);
+        
+        // Vérification de sécurité - s'assurer que les nœuds existent
+        if (!a || !b) continue;
+        
         ctx.strokeStyle = '#00ff00';
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
+        
+        if (conns.length === 1) {
+          // Connexion simple
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        } else if (conns.length === 2) {
+          // Double connexion - dessiner deux traits parallèles
+          ctx.lineWidth = 2;
+          
+          // Calcule le vecteur perpendiculaire pour espacer les traits
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          const perpX = -dy / length * 4; // Espacement de 4 pixels
+          const perpY = dx / length * 4;
+          
+          // Premier trait
+          ctx.beginPath();
+          ctx.moveTo(a.x + perpX, a.y + perpY);
+          ctx.lineTo(b.x + perpX, b.y + perpY);
+          ctx.stroke();
+          
+          // Deuxième trait
+          ctx.beginPath();
+          ctx.moveTo(a.x - perpX, a.y - perpY);
+          ctx.lineTo(b.x - perpX, b.y - perpY);
+          ctx.stroke();
+        }
       }
 
       ctx.shadowBlur = 0;
 
+      // Dessine les nœuds
       for (const node of nodes) {
         const complete = node.connections === node.max;
+        const overLimit = node.connections > 6;
+        
         ctx.beginPath();
         ctx.arc(node.x, node.y, nodeRadius, 0, Math.PI * 2);
-        ctx.fillStyle = complete ? '#00ff00' : '#001100';
-        ctx.strokeStyle = '#00ff00';
+        
+        if (overLimit) {
+          ctx.fillStyle = '#ff0000';
+        } else if (complete) {
+          ctx.fillStyle = '#00ff00';
+        } else {
+          ctx.fillStyle = '#001100';
+        }
+        
+        ctx.strokeStyle = overLimit ? '#ff0000' : '#00ff00';
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(node.x - 14, node.y - 8, 28, 16);
+        // Fond du texte
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(node.x - 18, node.y - 8, 36, 16);
 
-        ctx.fillStyle = '#00ff00';
+        // Texte des connexions
+        ctx.fillStyle = overLimit ? '#ff0000' : '#00ff00';
         ctx.font = '12px Courier New';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${node.connections}/${node.max}`, node.x, node.y);
       }
 
+      // Surligne le nœud sélectionné
       if (selectedNode) {
         ctx.strokeStyle = '#ffff00';
         ctx.setLineDash([5, 5]);
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(selectedNode.x, selectedNode.y, nodeRadius + 4, 0, Math.PI * 2);
+        ctx.arc(selectedNode.x, selectedNode.y, nodeRadius + 6, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -167,9 +249,117 @@
       return connections.filter(c => (c[0] === id1 && c[1] === id2) || (c[0] === id2 && c[1] === id1)).length;
     }
 
+    // Vérifie si deux nœuds peuvent être reliés (ligne de vue claire)
+    function canConnect(node1, node2) {
+      const [y1, x1] = node1.id.split('-').map(Number);
+      const [y2, x2] = node2.id.split('-').map(Number);
+      
+      // Doit être sur la même ligne (horizontal) ou colonne (vertical)
+      if (y1 !== y2 && x1 !== x2) {
+        return false;
+      }
+      
+      // Vérifie qu'il n'y a pas d'autre point entre les deux
+      if (y1 === y2) {
+        // Connexion horizontale
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        
+        for (let x = minX + 1; x < maxX; x++) {
+          const obstacleId = `${y1}-${x}`;
+          if (nodes.find(n => n.id === obstacleId)) {
+            return false; // Il y a un obstacle
+          }
+        }
+      } else {
+        // Connexion verticale
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        
+        for (let y = minY + 1; y < maxY; y++) {
+          const obstacleId = `${y}-${x1}`;
+          if (nodes.find(n => n.id === obstacleId)) {
+            return false; // Il y a un obstacle
+          }
+        }
+      }
+      
+      return true; // Ligne de vue claire
+    }
+
     function checkWin() {
       const allCorrect = nodes.every(n => n.connections === n.max);
-      winImage.style.display = allCorrect ? 'block' : 'none';
+      const noOverLimit = nodes.every(n => n.connections <= 6);
+      winImage.style.display = (allCorrect && noOverLimit) ? 'block' : 'none';
+    }
+
+    // Trouve et supprime une connexion cliquée
+    function removeConnectionAt(x, y) {
+      // Groupe les connexions par paire de points pour gérer les doubles traits
+      const connectionGroups = {};
+      for (let i = 0; i < connections.length; i++) {
+        const conn = connections[i];
+        const key = [conn[0], conn[1]].sort().join('-');
+        if (!connectionGroups[key]) {
+          connectionGroups[key] = [];
+        }
+        connectionGroups[key].push({conn, index: i});
+      }
+
+      for (const [key, conns] of Object.entries(connectionGroups)) {
+        const [id1, id2] = key.split('-');
+        const a = nodes.find(n => n.id === id1);
+        const b = nodes.find(n => n.id === id2);
+        
+        // Vérification de sécurité - s'assurer que les nœuds existent
+        if (!a || !b) continue;
+        
+        // Vérifie si le clic est proche de la ligne (en tenant compte des doubles traits)
+        let hitDetected = false;
+        
+        if (conns.length === 1) {
+          // Connexion simple
+          const dist = Math.abs((b.y - a.y) * x - (b.x - a.x) * y + b.x * a.y - b.y * a.x) /
+                       Math.hypot(b.x - a.x, b.y - a.y);
+          const midX = (a.x + b.x) / 2;
+          const midY = (a.y + b.y) / 2;
+          hitDetected = dist < 8 && Math.abs(x - midX) < 30 && Math.abs(y - midY) < 30;
+        } else if (conns.length === 2) {
+          // Double connexion - vérifie les deux traits
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          
+          if (length > 0) { // Évite la division par zéro
+            const perpX = -dy / length * 4;
+            const perpY = dx / length * 4;
+            
+            // Vérifie le premier trait
+            const dist1 = Math.abs((b.y + perpY - a.y - perpY) * x - (b.x + perpX - a.x - perpX) * y + 
+                                  (b.x + perpX) * (a.y + perpY) - (b.y + perpY) * (a.x + perpX)) /
+                         Math.hypot(b.x - a.x, b.y - a.y);
+            
+            // Vérifie le deuxième trait
+            const dist2 = Math.abs((b.y - perpY - a.y + perpY) * x - (b.x - perpX - a.x + perpX) * y + 
+                                  (b.x - perpX) * (a.y - perpY) - (b.y - perpY) * (a.x + perpX)) /
+                         Math.hypot(b.x - a.x, b.y - a.y);
+            
+            const midX = (a.x + b.x) / 2;
+            const midY = (a.y + b.y) / 2;
+            hitDetected = (dist1 < 8 || dist2 < 8) && Math.abs(x - midX) < 30 && Math.abs(y - midY) < 30;
+          }
+        }
+        
+        if (hitDetected) {
+          // Supprime une connexion (la première trouvée)
+          const toRemove = conns[0];
+          connections.splice(toRemove.index, 1);
+          a.connections--;
+          b.connections--;
+          return true;
+        }
+      }
+      return false;
     }
 
     canvas.addEventListener("click", (e) => {
@@ -177,21 +367,10 @@
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      for (let i = 0; i < connections.length; i++) {
-        const [id1, id2] = connections[i];
-        const a = nodes.find(n => n.id === id1);
-        const b = nodes.find(n => n.id === id2);
-        const dist = Math.abs((b.y - a.y) * x - (b.x - a.x) * y + b.x * a.y - b.y * a.x) /
-                     Math.hypot(b.x - a.x, b.y - a.y);
-        const midX = (a.x + b.x) / 2;
-        const midY = (a.y + b.y) / 2;
-        if (dist < 6 && Math.abs(x - midX) < 25 && Math.abs(y - midY) < 25) {
-          connections.splice(i, 1);
-          a.connections--;
-          b.connections--;
-          draw();
-          return;
-        }
+      // Essaie de supprimer une connexion existante
+      if (removeConnectionAt(x, y)) {
+        draw();
+        return;
       }
 
       const clicked = getNodeAt(x, y);
@@ -202,41 +381,33 @@
       } else if (selectedNode.id === clicked.id) {
         selectedNode = null;
       } else {
-        // Détermine les voisins logiques dans la grille
-        function getNeighbors(node) {
-          const [y, x] = node.id.split('-').map(Number);
-          const deltas = [
-            [-1, 0], [1, 0], [0, -1], [0, 1], // orthogonaux
-            [-1, -1], [-1, 1], [1, -1], [1, 1] // diagonaux
-          ];
-          const neighbors = [];
-          for (const [dy, dx] of deltas) {
-            const ny = y + dy;
-            const nx = x + dx;
-            const neighborId = `${ny}-${nx}`;
-            if (nodes.find(n => n.id === neighborId)) {
-              neighbors.push(neighborId);
-            }
-          }
-          return neighbors;
-        }
-        const selectedNeighbors = getNeighbors(selectedNode);
-        const isNeighbor = selectedNeighbors.includes(clicked.id);
-
-        const nbConn = connectionCount(selectedNode.id, clicked.id);
-        if (
-          isNeighbor &&
+        // Vérifie toutes les règles
+        const hasLineOfSight = canConnect(selectedNode, clicked);
+        const existingConnections = connectionCount(selectedNode.id, clicked.id);
+        const canAddConnection = 
+          hasLineOfSight &&
           selectedNode.connections < selectedNode.max &&
           clicked.connections < clicked.max &&
-          nbConn < 2
-        ) {
+          selectedNode.connections < 6 &&
+          clicked.connections < 6 &&
+          existingConnections < 2;
+
+        if (canAddConnection) {
           connections.push([selectedNode.id, clicked.id]);
           selectedNode.connections++;
           clicked.connections++;
         }
+        
         selectedNode = null;
       }
 
+      draw();
+    });
+
+    // Bouton de reset
+    resetBtn.addEventListener("click", () => {
+      generatePuzzleGrid();
+      selectedNode = null;
       draw();
     });
 
