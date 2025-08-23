@@ -130,6 +130,37 @@
       to { transform: translate(-50%, -50%) scale(1); }
     }
 
+    #winTime {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: calc(50% + 400px);
+      transform: translateY(-50%);
+      background: linear-gradient(45deg, rgba(0, 255, 0, 0.2), rgba(0, 255, 0, 0.1));
+      border: 3px solid #00ff00;
+      border-radius: 10px;
+      padding: 20px 30px;
+      font-family: 'Courier New', monospace;
+      font-size: 24px;
+      font-weight: bold;
+      color: #00ff00;
+      text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.6);
+      z-index: 1002;
+      animation: winPop 0.7s ease-out 0.3s both;
+      text-align: center;
+      min-width: 150px;
+    }
+
+    /* Responsive : sur petits écrans, afficher en dessous de l'image */
+    @media (max-width: 1200px) {
+      #winTime {
+        top: calc(50% + 250px);
+        left: 50%;
+        transform: translate(-50%, 0);
+      }
+    }
+
     .rule-highlight {
       color: #ffff00;
       font-weight: bold;
@@ -232,16 +263,66 @@
 
   <div id="winOverlay"></div>
   <img id="winImage" src="win.jpg" alt="Félicitations !" />
+  <div id="winTime"></div>
   
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const winImage = document.getElementById("winImage");
     const winOverlay = document.getElementById("winOverlay");
+    const winTime = document.getElementById("winTime");
     const resetBtn = document.getElementById("resetBtn");
     const clearBtn = document.getElementById("clearBtn");
     const selectedInfo = document.getElementById("selectedInfo");
     const connectionMode = document.getElementById("connectionMode");
+
+    // Variables du chronomètre
+    let startTime = null;
+    let endTime = null;
+    let gameStarted = false;
+
+    // Démarre le chronomètre
+    function startTimer() {
+      if (!gameStarted) {
+        startTime = Date.now();
+        gameStarted = true;
+        console.log('Chronomètre démarré');
+      }
+    }
+
+    // Arrête le chronomètre et formate le temps
+    function stopTimer() {
+      if (gameStarted && startTime && !endTime) {
+        endTime = Date.now();
+        gameStarted = false; // Arrête définitivement le chronomètre
+        const totalTime = endTime - startTime;
+        const minutes = Math.floor(totalTime / 60000);
+        const seconds = Math.floor((totalTime % 60000) / 1000);
+        const milliseconds = Math.floor((totalTime % 1000) / 10);
+        
+        console.log('Chronomètre arrêté à:', `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`);
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+      }
+      
+      // Si déjà arrêté, retourne le temps calculé précédemment
+      if (endTime && startTime) {
+        const totalTime = endTime - startTime;
+        const minutes = Math.floor(totalTime / 60000);
+        const seconds = Math.floor((totalTime % 60000) / 1000);
+        const milliseconds = Math.floor((totalTime % 1000) / 10);
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+      }
+      
+      return "00:00.00";
+    }
+
+    // Remet à zéro le chronomètre
+    function resetTimer() {
+      startTime = null;
+      endTime = null;
+      gameStarted = false;
+      console.log('Chronomètre remis à zéro');
+    }
 
     // Ajuste la taille du canvas pour mobile
     function resizeCanvas() {
@@ -726,13 +807,19 @@
       const fullyConnected = isFullyConnected();
       
       if (allCorrect && noOverLimit && fullyConnected) {
+        // Arrête le chronomètre et récupère le temps
+        const finalTime = stopTimer();
+        
         winOverlay.style.display = 'block';
         winImage.style.display = 'block';
+        winTime.style.display = 'block';
+        winTime.innerHTML = `⏱️<br/>${finalTime}`;
         selectedInfo.textContent = "🎉 Félicitations ! Vous avez résolu le puzzle !";
         connectionMode.style.display = 'none';
       } else {
         winOverlay.style.display = 'none';
         winImage.style.display = 'none';
+        winTime.style.display = 'none';
         
         // Message d'aide si les quotas sont corrects mais pas connecté
         if (allCorrect && noOverLimit && !fullyConnected) {
@@ -830,6 +917,11 @@
             existingConnections < 2;
 
           if (canAddConnection) {
+            // Démarre le chronomètre au premier point relié
+            if (connections.length === 0) {
+              startTimer();
+            }
+            
             connections.push([selectedNode.id, clicked.id]);
             selectedNode.connections++;
             clicked.connections++;
@@ -859,12 +951,14 @@
 
     // Bouton de reset
     resetBtn.addEventListener("click", () => {
+      resetTimer();
       generatePuzzleGrid();
       draw();
     });
 
     // Bouton pour effacer toutes les connexions
     clearBtn.addEventListener("click", () => {
+      resetTimer();
       connections.length = 0;
       nodes.forEach(node => node.connections = 0);
       selectedNode = null;
@@ -876,11 +970,19 @@
     winOverlay.addEventListener("click", () => {
       winOverlay.style.display = 'none';
       winImage.style.display = 'none';
+      winTime.style.display = 'none';
     });
 
     winImage.addEventListener("click", () => {
       winOverlay.style.display = 'none';
       winImage.style.display = 'none';
+      winTime.style.display = 'none';
+    });
+
+    winTime.addEventListener("click", () => {
+      winOverlay.style.display = 'none';
+      winImage.style.display = 'none';
+      winTime.style.display = 'none';
     });
 
     // Animation continue pour les effets visuels
