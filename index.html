@@ -338,7 +338,7 @@
     
     <div id="controls">
       <button id="resetBtn">🔄 Recommencer</button>
-      <button id="clearBtn">🗑️ Effacer</button>
+      <button id="clearBtn">↶ Annuler</button>
     </div>
     
     <div id="rules">
@@ -372,6 +372,59 @@
     let startTime = null;
     let endTime = null;
     let gameStarted = false;
+
+    // Système d'historique pour l'annulation
+    let actionHistory = [];
+
+    // Sauvegarde l'état actuel dans l'historique
+    function saveState() {
+      const currentState = {
+        connections: connections.map(conn => [...conn]), // Copie profonde
+        nodeConnections: nodes.map(node => ({
+          id: node.id,
+          connections: node.connections
+        }))
+      };
+      actionHistory.push(currentState);
+      
+      // Limite l'historique à 10 actions pour éviter la surcharge mémoire
+      if (actionHistory.length > 10) {
+        actionHistory.shift();
+      }
+      
+      console.log('État sauvegardé, historique:', actionHistory.length);
+    }
+
+    // Annule la dernière action
+    function undoLastAction() {
+      if (actionHistory.length === 0) {
+        console.log('Aucune action à annuler');
+        return false;
+      }
+
+      const previousState = actionHistory.pop();
+      
+      // Restaure les connexions
+      connections.length = 0;
+      connections.push(...previousState.connections);
+      
+      // Restaure le nombre de connexions de chaque nœud
+      previousState.nodeConnections.forEach(savedNode => {
+        const node = nodes.find(n => n.id === savedNode.id);
+        if (node) {
+          node.connections = savedNode.connections;
+        }
+      });
+      
+      console.log('Action annulée, historique restant:', actionHistory.length);
+      return true;
+    }
+
+    // Remet à zéro l'historique
+    function clearHistory() {
+      actionHistory = [];
+      console.log('Historique effacé');
+    }
 
     // Démarre le chronomètre
     function startTimer() {
@@ -1004,6 +1057,9 @@
         if (distance < tolerance) {
           console.log(`Suppression d'une connexion entre ${node1.id} et ${node2.id}`);
           
+          // Sauvegarde l'état avant la suppression
+          saveState();
+          
           // Supprime une seule connexion du groupe
           const indexToRemove = connGroup[connGroup.length - 1].index;
           connections.splice(indexToRemove, 1);
@@ -1052,6 +1108,9 @@
             existingConnections < 2;
 
           if (canAddConnection) {
+            // Sauvegarde l'état avant la modification
+            saveState();
+            
             // Démarre le chronomètre au premier point relié
             if (connections.length === 0) {
               startTimer();
@@ -1091,13 +1150,9 @@
       draw();
     });
 
-    // Bouton pour effacer toutes les connexions
+    // Bouton pour annuler la dernière action
     clearBtn.addEventListener("click", () => {
-      resetTimer();
-      connections.length = 0;
-      nodes.forEach(node => node.connections = 0);
-      selectedNode = null;
-      updateSelectedInfo();
+      undoLastAction();
       draw();
     });
 
