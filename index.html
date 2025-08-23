@@ -94,11 +94,19 @@
 
     #winImage {
       display: none;
-      margin: 15px 0;
-      border: 2px solid #00ff00;
-      border-radius: 8px;
-      max-width: 200px;
+      margin: 20px 0;
+      border: 3px solid #00ff00;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
       height: auto;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.6);
+      animation: winGlow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes winGlow {
+      from { box-shadow: 0 0 20px rgba(0, 255, 0, 0.6); }
+      to { box-shadow: 0 0 30px rgba(0, 255, 0, 0.9); }
     }
 
     .rule-highlight {
@@ -201,7 +209,7 @@
     </div>
   </div>
 
-  <img id="winImage" src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3l2Y2o3cDVobTU2ZDFsc3EyMXVmeTh0OGt3eXpuMTAzMHY2ZHBsYSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/rxvGisdf3qL4A/giphy.gif" alt="Félicitations !" />
+  <img id="winImage" src="win.jpg" alt="Félicitations !" />
   
   <script>
     const canvas = document.getElementById("gameCanvas");
@@ -442,15 +450,60 @@
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Texte des connexions avec ombre
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.font = 'bold 18px Courier New';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${node.connections}/${node.max}`, node.x + 1, node.y + 1);
+        // Fonction pour afficher des points en motif de domino
+        function drawDots(x, y, current, max, isComplete) {
+          const dotRadius = 4;
+          const spacing = 12;
+          
+          // Positions des points selon les motifs de domino
+          const dominoPatterns = {
+            1: [[0, 0]],
+            2: [[-spacing/2, -spacing/2], [spacing/2, spacing/2]],
+            3: [[-spacing/2, -spacing/2], [0, 0], [spacing/2, spacing/2]],
+            4: [[-spacing/2, -spacing/2], [spacing/2, -spacing/2], 
+                [-spacing/2, spacing/2], [spacing/2, spacing/2]],
+            5: [[-spacing/2, -spacing/2], [spacing/2, -spacing/2], [0, 0],
+                [-spacing/2, spacing/2], [spacing/2, spacing/2]],
+            6: [[-spacing/2, -spacing*0.8], [-spacing/2, 0], [-spacing/2, spacing*0.8],
+                [spacing/2, -spacing*0.8], [spacing/2, 0], [spacing/2, spacing*0.8]]
+          };
+          
+          const pattern = dominoPatterns[max] || [[0, 0]];
+          
+          for (let i = 0; i < pattern.length; i++) {
+            const dotX = x + pattern[i][0];
+            const dotY = y + pattern[i][1];
+            
+            ctx.beginPath();
+            ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2);
+            
+            // Ombre pour meilleure visibilité
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(dotX - 1, dotY - 1, dotRadius, 0, Math.PI * 2);
+            
+            // Points remplis pour les connexions actuelles, vides pour les restantes
+            if (i < current) {
+              ctx.fillStyle = isComplete ? '#ffffff' : '#00ff00';
+              ctx.fill();
+              // Contour pour plus de visibilité
+              ctx.strokeStyle = '#004400';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            } else {
+              ctx.fillStyle = '#222222';
+              ctx.fill();
+              ctx.strokeStyle = '#888888';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            }
+          }
+        }
         
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(`${node.connections}/${node.max}`, node.x, node.y);
+        // Affiche les points au lieu des chiffres
+        drawDots(node.x, node.y, node.connections, node.max, complete);
       }
 
       // Surligne le nœud sélectionné avec des effets lumineux
